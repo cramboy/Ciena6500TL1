@@ -30,3 +30,65 @@ def login(mgmtIP, username, password):
             return(nodeName)
         else: return("Node name not found")
     else: return("TL1 DENY")
+
+    
+    def shelfNumbs(nodeName):
+    """
+    Returns a list of the shelves in the TID using the form:
+    [[SHELF-n, {shelfInfo}], [SHELF-n, {shelfInfo}], ...]
+
+    Where "n" is the shelf number
+
+    Each {shelfInfo} is a dictionary containing shelf attributes. The exact 
+    contents of the shelf dictionary may vary depending on software load.
+
+    """
+    telnetServer.write(("RTRV-SHELF::ALL:PYTHON;").encode())
+    commandResponse = telnetServer.read_until(b";\r\n<").decode()
+    commandResponse = commandResponse.splitlines()
+
+    # Remove garbage from string
+    commandResponse = [item for item in commandResponse if "PYTHON COMPLD" not in item]
+    commandResponse = [item for item in commandResponse if ">" not in item]
+    commandResponse = [item for item in commandResponse if nodeName not in item]
+    commandResponse = [item for item in commandResponse if len(item) > 2]
+
+    shelfList = []
+    for index, item in enumerate(commandResponse):
+        if item.find("SHELF-") > 0:
+            start = item.find("SHELF-")
+            end = item.find("::")
+            shelf = item[start:end]
+            shelfList.append(shelf)
+    # print(shelfList)
+
+    # remove the "SHELF" name from the list including "::"
+    for index, item in enumerate(commandResponse):
+        newStartIndex = item.find("::") + 2
+        item = item.replace(item[:newStartIndex], "")
+        commandResponse.pop(index)
+        commandResponse.insert(index, item)
+    # print(commandResponse)
+
+    # remove remaining garbage characters from string
+    for index, item in enumerate(commandResponse):
+        item = item.replace('\\', '')
+        commandResponse.pop(index)
+        commandResponse.insert(index, item)
+    # print(commandResponse)
+
+    # convert commandResponse to dictionary and add to list
+    shelfDictionaryList = []
+    for index, item in enumerate(commandResponse):
+            dictionary = dict(subString.split("=") for subString in item.split(","))
+            shelfDictionaryList.append(dictionary)
+    # pprint.pprint(shelfDictionaryList)
+
+    # create the final interface list
+    FinalShelfList = []
+    for index, item in enumerate(shelfList):
+        shelfDictionary = shelfDictionaryList[index]
+        FinalShelfList.append([item, shelfDictionary])
+    # pprint.pprint(FinalShelfList)
+
+    return(FinalShelfList)
