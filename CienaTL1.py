@@ -13,7 +13,9 @@ import pprint
 import re
 
 def login(mgmtIP, username, password):
-    """ Login to Ciena 6500 and return node name """
+    """ 
+    Login to Ciena 6500 and return node name 
+    """
 
     global telnetServer
     telnetServer = telnetlib.Telnet(mgmtIP, 23, timeout=10)
@@ -32,7 +34,7 @@ def login(mgmtIP, username, password):
     else: return("TL1 DENY")
 
     
-    def shelfNumbs(nodeName):
+def shelfNumbs(nodeName):
     """
     Returns a list of the shelves in the TID using the form:
     [[SHELF-n, {shelfInfo}], [SHELF-n, {shelfInfo}], ...]
