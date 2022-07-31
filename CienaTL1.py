@@ -1,12 +1,6 @@
 # CienaTL1.py
 ''' Module runs TL1 commands on Ciena 6500 devices and parses output'''
 
-# TL1 (Transaction Language 1) is an ancient and mysterious command line syntax
-# used to speak directly to telecom devices in "the old tongue". Possibly alien
-# in origin, this language is believed to have been used in shadowy druid cults 
-# attempting to gain favor with the dark telco underlord. Don't stare at it for
-# too long. Weltin 2022.06
-
 # Imported libraries
 import telnetlib
 import pprint
@@ -62,7 +56,6 @@ def shelfNumbs(nodeName):
             end = item.find("::")
             shelf = item[start:end]
             shelfList.append(shelf)
-    # print(shelfList)
 
     # remove the "SHELF" name from the list including "::"
     for index, item in enumerate(commandResponse):
@@ -70,27 +63,23 @@ def shelfNumbs(nodeName):
         item = item.replace(item[:newStartIndex], "")
         commandResponse.pop(index)
         commandResponse.insert(index, item)
-    # print(commandResponse)
 
     # remove remaining garbage characters from string
     for index, item in enumerate(commandResponse):
         item = item.replace('\\', '')
         commandResponse.pop(index)
         commandResponse.insert(index, item)
-    # print(commandResponse)
 
     # convert commandResponse to dictionary and add to list
     shelfDictionaryList = []
     for index, item in enumerate(commandResponse):
             dictionary = dict(subString.split("=") for subString in item.split(","))
             shelfDictionaryList.append(dictionary)
-    # pprint.pprint(shelfDictionaryList)
 
     # create the final interface list
     FinalShelfList = []
     for index, item in enumerate(shelfList):
         shelfDictionary = shelfDictionaryList[index]
         FinalShelfList.append([item, shelfDictionary])
-    # pprint.pprint(FinalShelfList)
 
     return(FinalShelfList)
