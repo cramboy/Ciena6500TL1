@@ -27,7 +27,7 @@ def login(mgmtIP, username, password):
         else: return("Node name not found")
     else: return("TL1 DENY")
 
-    
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 def shelfNumbs(nodeName):
     """
     Returns a list of the shelves in the TID using the form:
@@ -145,6 +145,8 @@ def shelfNumbs(nodeName):
     # [[Shelf-n, {shelf dictionary}], [Shelf-n, {shelf dictionary}], ...]
     return(ShelfList)
 
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
 def otsInfo(nodeName):
     """ Method used to retrieve OTS information from the TID """
 
@@ -194,3 +196,140 @@ def otsInfo(nodeName):
         OTSinfoList.append([OTSinstance, OTSinstDict])
 
     return(OTSinfoList)
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+
+def tidComms(nodeName):
+    """ Returns all provisioned IP addresses on the TID """
+
+    # Get the shelf numbers in each TID
+    RTRVSHELFlist = []
+    shelfNumbers = shelfNumbs(nodeName)
+    for index, item in enumerate(shelfNumbers):
+        RTRVSHELFlist.append(item[0])
+
+    # Get the static routes provisioned in the TID
+    telnetServer.write(("RTRV-IPSTATICRT:::PYTHON;").encode())
+    commandResponse = telnetServer.read_until(b";\r\n<").decode()
+    commandResponse = commandResponse.splitlines()
+
+    # remove garbage from string
+    commandResponse = [item for item in commandResponse if "PYTHON COMPLD" not in item]
+    commandResponse = [item for item in commandResponse if ">" not in item]
+    commandResponse = [item for item in commandResponse if nodeName not in item]
+    commandResponse = [item for item in commandResponse if len(item) > 2]
+
+    # Find each instance of "SHELF-"
+    RTRVIPSTATICRTSHELFlist = []
+    for index, item in enumerate(commandResponse):
+        if item.find("SHELF-") > 0:
+            start = item.find("SHELF-")
+            end = item.find("::")
+            shelfName = item[start:end]
+            RTRVIPSTATICRTSHELFlist.append(shelfName)
+    RTRVIPSTATICRTSHELFlist = sorted(RTRVIPSTATICRTSHELFlist)
+
+    # remove the SHELF- name from the list including "::"
+    for index, item in enumerate(commandResponse):
+        newStartIndex = item.find("::") + 2
+        item = item.replace(item[:newStartIndex], "")
+        item = item.replace("\\", "")  # remove back-slashes
+        item = item.replace('"""', " ")  # remove triple quotes
+        commandResponse.pop(index)
+        commandResponse.insert(index, item)
+
+    # convert commandResponse to dictionary and add to list
+    StaticRouteDictList = []
+    for index, item in enumerate(commandResponse):
+        dictionary = dict(subString.split("=") for subString in item.split(","))
+        dictionary["TYPE"] = "STATICROUTE"
+        StaticRouteDictList.append(dictionary)
+
+    # Add shelf and static route dictionary together
+    ShelfStaticRouteList = []
+    for index, item in enumerate(RTRVIPSTATICRTSHELFlist):
+        ShelfStaticRouteList.append([item, StaticRouteDictList[index]])
+
+    # Find which shelves are in RTRVSHELFlist but not in RTRVIPSTATICRTSHELFlist 
+    RemainingShelvesList = [ element for element in RTRVSHELFlist if element not in RTRVIPSTATICRTSHELFlist]
+
+    for index, item in enumerate(RemainingShelvesList):
+        emptyDictionary = {"IPADDR": "","NETMASK":"","NEXTHOP":"" ,"CIRCUIT":"","COST":"","CARRIER":"","STATUS":"","DESCRIPTION":"", "TYPE":"STATICROUTE"}
+        ShelfStaticRouteList.append([item, emptyDictionary])
+
+    # Get the IP provisioning in the TID
+    telnetServer.write(("RTRV-IP:::PYTHON:::;").encode())
+    commandResponse = telnetServer.read_until(b";\r\n<").decode()
+    commandResponse = commandResponse.splitlines()
+
+    # Remove garbage from string
+    commandResponse = [item for item in commandResponse if "PYTHON COMPLD" not in item]
+    commandResponse = [item for item in commandResponse if ">" not in item]
+    commandResponse = [item for item in commandResponse if nodeName not in item]
+    commandResponse = [item for item in commandResponse if len(item) > 2]
+    commandResponse = [item for item in commandResponse if "ILAN-" not in item]
+
+    # Find any entries with the string "COLAN-"
+    CommsList = []
+    COLANXlist = []
+    LAN15list = []
+    SHELFIPlist = []
+    for index, item in enumerate(commandResponse):
+        if item.find("COLAN-") > 0:
+            start = item.find("COLAN-")
+            end = item.find(":")
+            colanX = item[start:end]
+            COLANXline = item
+            newStartIndex = COLANXline.find("::") + 2
+            COLANXline = COLANXline.replace(COLANXline[:newStartIndex], "")
+            COLANXdictionary = dict(subString.split("=") for subString in COLANXline.split(","))
+            COLANXdictionary["TYPE"] = colanX
+            shelfNumber = COLANXdictionary["TYPE"][6:-2]
+            COLANXdictionary["SHELF"] = ("SHELF-" + shelfNumber)
+            COLANXlist.append(COLANXdictionary)
+    commandResponse = [item for item in commandResponse if "COLAN-" not in item]
+
+    for index, item in enumerate(commandResponse):
+        if item.find("LAN-") > 0:
+            start = item.find("LAN-")
+            end = item.find(":")
+            lan = item[start:end]
+            LANline = item
+            newStartIndex = LANline.find("::") + 2
+            LANline = LANline.replace(LANline[:newStartIndex], "")
+            LANdictionary = dict(subString.split("=") for subString in LANline.split(","))
+            LANdictionary["TYPE"] = lan
+            shelfNumber = LANdictionary["TYPE"][4:-3]
+            LANdictionary["SHELF"] = ("SHELF-" + shelfNumber)
+            LAN15list.append(LANdictionary)
+    commandResponse = [item for item in commandResponse if "LAN-" not in item]
+
+    for index, item in enumerate(commandResponse):
+        if item.find("SHELF-") > 0:
+            start = item.find("SHELF-")
+            end = item.find(":")
+            shelf = item[start:end]
+            SHELFline = item
+            newStartIndex = SHELFline.find("::") + 2
+            SHELFline = SHELFline.replace(SHELFline[:newStartIndex], "")
+            SHELFdictionary = dict(subString.split("=") for subString in SHELFline.split(","))
+            SHELFdictionary["TYPE"] = shelf
+            shelfNumber = SHELFdictionary["TYPE"][6:]
+            SHELFdictionary["SHELF"] = ("SHELF-" + shelfNumber)
+            SHELFIPlist.append(SHELFdictionary)
+    commandResponse = [item for item in commandResponse if "SHELF-" not in item]
+
+    for index, item in enumerate(RTRVSHELFlist):
+        shelfCommsList = []
+        shelfCommsList.append(item) 
+        for eachItem in COLANXlist:
+            if eachItem["SHELF"] == item: 
+                shelfCommsList.append(eachItem)
+        for eachItem in LAN15list: 
+            if eachItem["SHELF"] == item: 
+                shelfCommsList.append(eachItem)
+        for eachItem in SHELFIPlist:
+            if eachItem["SHELF"] == item: 
+                shelfCommsList.append(eachItem)  
+        CommsList.append(shelfCommsList)  
+    return(CommsList)
