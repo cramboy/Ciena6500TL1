@@ -158,10 +158,6 @@ def otsInfo(nodeName):
     commandResponse = [item for item in commandResponse if nodeName not in item]
     commandResponse = [item for item in commandResponse if len(item) > 2]
 
-    # for eachline in commandResponse:
-    #     print()
-    #     print(commandResponse)
-
    # get the OTM4 name which starts with OTM4 and ends before "::"
     OTSList = []
     for index, item in enumerate(commandResponse):
@@ -170,7 +166,6 @@ def otsInfo(nodeName):
             end = item.find("::")
             OTSentity = item[start:end]
             OTSList.append(OTSentity)
-    # print(OTSList)
 
     # remove the OTS name from the list including "::"
     for index, item in enumerate(commandResponse):
@@ -178,13 +173,11 @@ def otsInfo(nodeName):
         item = item.replace(item[:newStartIndex], "")
         commandResponse.pop(index)
         commandResponse.insert(index, item)
-    # print(commandResponse)
 
     for index, item in enumerate(commandResponse):
         item = item.replace("\\", "")  # remove back-slashes
         commandResponse.pop(index)
         commandResponse.insert(index, item)
-    # print(commandResponse)
 
     OTSdictList = []
     for index, item in enumerate(commandResponse):
@@ -192,7 +185,6 @@ def otsInfo(nodeName):
             if dictionary["SUBTYPE"] == "ROADM":
                 if "DSCM1" not in dictionary: dictionary["DSCM1"] = "None"
             OTSdictList.append(dictionary)
-    # print(OTSdictList)
 
     # create the final interface list
     OTSinfoList = []
@@ -200,9 +192,5 @@ def otsInfo(nodeName):
         OTSinstance = item
         OTSinstDict = OTSdictList[index]
         OTSinfoList.append([OTSinstance, OTSinstDict])
-    
-    # for eachItem in OTSinfoList:
-        # print()
-        # print(eachItem)
 
     return(OTSinfoList)
